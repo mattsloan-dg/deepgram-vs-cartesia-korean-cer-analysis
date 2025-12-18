@@ -50,10 +50,9 @@ def get_deepgram_transcript():
     print("Calling Deepgram API...")
     response = requests.post(url, headers=headers, data=audio_data)
     response.raise_for_status()
-    
-    # Extract transcript from response
     result = response.json()
-    transcript = result['results']['channels'][0]['alternatives'][0]['transcript']
+
+    # The `transcript` field does not have proper spacing so instead we need to concatenate the individual words.
     words = result['results']['channels'][0]['alternatives'][0]['words']
     concatenated_text = ' '.join([word['word'] for word in words])
 
@@ -63,7 +62,6 @@ def get_deepgram_transcript():
     for char in punctuation:
         transcript = transcript.replace(char, '')
     
-    # Save transcript to file
     with open('./deepgram_transcript/deepgram.txt', 'w', encoding='utf-8') as f:
         f.write(transcript)
     
