@@ -211,3 +211,5 @@ __marimo__/
 .env
 .venv
 retrieve_huggingface.py
+deepgram_transcript/deepgram.txt
+cartesia_transcript/cartesia.txt
