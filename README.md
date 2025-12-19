@@ -1,6 +1,18 @@
-# deepgram-vs-cartesia-korean-cer-analysis
+# Deepgram vs. Cartesia Korean CER Analysis
 
 Deepgram (nova-3) vs. Cartesia (ink-whisper) Korean CER (character error rate) analysis
+
+## Prerequisites
+
+You must install [uv](https://docs.astral.sh/uv/). This can be installed very easily with one short terminal command:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+You must have a [Deepgram API Key](https://developers.deepgram.com/home)
+
+You must have a [Cartesia API Key](https://docs.cartesia.ai/get-started/overview)
 
 ## Setup
 
@@ -23,6 +35,8 @@ The `audio` directory expects a single audio file named **`master_korean_audio.w
 ffmpeg -i <original_file>.mp3 <converted_file>.wav
 ```
 
+The above example shows how to convert a .mp3 file (original). To convert from a different audio file format, please see the [ffmpeg docs](https://www.ffmpeg.org/ffmpeg.html).
+
 Then rename the converted file to `master_korean_audio.wav` and place it in the `audio` directory.
 
 ### True Transcript Directory
@@ -41,34 +55,27 @@ This will be our source of truth transcript. It is the 100% accurate transcript,
 
 Follow these steps to run the analysis:
 
-1. **Create output directories** for the transcripts:
-
-```bash
-mkdir deepgram_transcript
-mkdir cartesia_transcript
-```
-
-2. **Set up your environment variables** by copying the example file:
+1. **Set up your environment variables** by copying the example file:
 
 ```bash
 cp .env.example .env
 ```
 
-3. **Add your API keys** to the `.env` file:
+2. **Add your API keys** to the `.env` file:
 
    - Open `.env` in your editor
    - Replace the placeholder values with your actual Deepgram and Cartesia API keys
 
-4. **Sync dependencies** using uv:
+3. **Sync dependencies** using uv:
 
 ```bash
 uv sync
 ```
 
-5. **Run the program**:
+4. **Run the program**:
 
 ```bash
 uv run python main.py
 ```
 
-The script will generate transcripts in both `deepgram_transcript` and `cartesia_transcript` directories, and output the CER (Character Error Rate) analysis comparing both services against your source of truth transcript.
+The script will generate transcripts in both `deepgram_transcript` and `cartesia_transcript` directories, and output the CER (Character Error Rate) analysis comparing both services against your source of truth transcript, in the `results` directory.
