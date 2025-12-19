@@ -3,6 +3,7 @@ import requests
 from dotenv import load_dotenv
 import string
 import json
+from levenshtein_calc import levenshtein_with_operations
     
 load_dotenv()
 
@@ -14,7 +15,7 @@ def open_audio_file(filename):
     with open(filename, 'rb') as audio_file:
         return audio_file.read()
     
-def write_text_file(filename, text):
+def write_file(filename, text):
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(text)
 
@@ -66,9 +67,9 @@ def get_deepgram_transcript():
     transcript = normalize_api_transcript(words_object)
 
     output_filename = './deepgram_transcript/deepgram.txt'
-    write_text_file(output_filename, transcript)
+    write_file(output_filename, transcript)
     print(f"Deepgram transcript retrieved and saved to {output_filename}")
-    return
+    return transcript
 
 def get_cartesia_transcript():
     cartesia_api_key = os.getenv('CARTESIA_API_KEY')
@@ -94,25 +95,93 @@ def get_cartesia_transcript():
     words_object = json_response['words']
     transcript = normalize_api_transcript(words_object)
     output_filename = './cartesia_transcript/cartesia.txt'
-    write_text_file(output_filename, transcript)
+    write_file(output_filename, transcript)
     print(f"Cartesia transcript retrieved and saved to {output_filename}")
-    return
+    return transcript
 
-def check_spaces():
-    pass
+def check_spaces(provider, source_of_truth, comparison_transcript, output_file=None):
+    source_no_space = source_of_truth.replace(' ', '')
+    comparison_no_space = comparison_transcript.replace(' ', '')
+    if source_no_space != comparison_no_space:
+        print("WARNING: The non-space characters don't match between files!", file=output_file)
+        print(f"Source length (no spaces): {len(source_no_space)}", file=output_file)
+        print(f"Deepgram length (no spaces): {len(comparison_no_space)}", file=output_file)
+        print("\nProceeding with comparison anyway...\n", file=output_file)
 
-def compare_chars():
-    pass
+    extra_spaces = 0  # Spaces in deepgram that aren't in source
+    missing_spaces = 0  # Spaces in source that aren't in deepgram
+    
+    source_idx = 0
+    comparison_idx = 0
+    char_position = 0
+
+    while source_idx < len(source_of_truth) and comparison_idx < len(comparison_transcript):
+        source_char = source_of_truth[source_idx]
+        comparison_char = comparison_transcript[comparison_idx]
+        
+        if source_char == ' ' and comparison_char == ' ':
+            # Both have space at this position - good
+            source_idx += 1
+            comparison_idx += 1
+        elif source_char == ' ' and comparison_char != ' ':
+            # Source has space but comparison transcript doesn't - missing space
+            missing_spaces += 1
+            source_idx += 1
+        elif source_char != ' ' and comparison_char == ' ':
+            # Comparison transcript has space but source doesn't - extra space
+            extra_spaces += 1
+            comparison_idx += 1
+        else:
+            # Both are non-space characters
+            if source_char == comparison_char:
+                source_idx += 1
+                comparison_idx += 1
+                char_position += 1
+            else:
+                # Characters don't match - alignment issue
+                print(f"Character mismatch at position {char_position}:", file=output_file)
+                print(f"  Source: '{source_char}' (index {source_idx})", file=output_file)
+                print(f"  {provider}: '{comparison_char}' (index {comparison_idx})", file=output_file)
+                # Skip to try to realign
+                source_idx += 1
+                comparison_idx += 1
+
+    # Handle remaining characters
+    while source_idx < len(source_of_truth):
+        if source_of_truth[source_idx] == ' ':
+            missing_spaces += 1
+        source_idx += 1
+    
+    while comparison_idx < len(comparison_transcript):
+        if comparison_transcript[comparison_idx] == ' ':
+            extra_spaces += 1
+        comparison_idx += 1
+
+    return extra_spaces, missing_spaces
 
 def calculate_cer():
     pass
 
 def main():
     source_of_truth = normalize_true_transcript()
-    get_deepgram_transcript()
-    get_cartesia_transcript()
-    check_spaces()
-    compare_chars()
+    deepgram_transcript = get_deepgram_transcript()
+    cartesia_transcript = get_cartesia_transcript()
+    
+    source_of_truth_no_spaces = source_of_truth.replace(" ", "")
+    deepgram_transcript_no_spaces = deepgram_transcript.replace(" ", "")
+    cartesia_transcript_no_spaces = cartesia_transcript.replace(" ", "")
+    
+    deepgram_levenshtein_no_spaces = levenshtein_with_operations(source_of_truth_no_spaces, deepgram_transcript_no_spaces)
+    cartesia_levenshtein_no_spaces = levenshtein_with_operations(source_of_truth_no_spaces, cartesia_transcript_no_spaces)
+    deepgram_levenshtein_with_spaces = levenshtein_with_operations(source_of_truth, deepgram_transcript_no_spaces)
+    cartesia_levenshtein_with_spaces = levenshtein_with_operations(source_of_truth, cartesia_transcript)
+
+    # Replace the last part comparison_transcript with the variable "deepgram_transcript" for producfion.
+    deepgram_space_check = check_spaces("deepgram", source_of_truth, comparison_transcript=read_text_file('./deepgram_transcript/deepgram.txt'))
+    cartesia_space_check = check_spaces("cartesia", source_of_truth, comparison_transcript=read_text_file('./cartesia_transcript/cartesia.txt'))
+    
+    
+    # write_file("./results/deepgram_spaces.txt", deepgram_space_check)
     calculate_cer()
 
 if __name__ == "__main__":
