@@ -99,18 +99,9 @@ def get_cartesia_transcript():
     print(f"Cartesia transcript retrieved and saved to {output_filename}")
     return transcript
 
-def check_spaces(provider, source_of_truth, comparison_transcript, output_file=None):
-    source_no_space = source_of_truth.replace(' ', '')
-    comparison_no_space = comparison_transcript.replace(' ', '')
-    if source_no_space != comparison_no_space:
-        print("WARNING: The non-space characters don't match between files!", file=output_file)
-        print(f"Source length (no spaces): {len(source_no_space)}", file=output_file)
-        print(f"Deepgram length (no spaces): {len(comparison_no_space)}", file=output_file)
-        print("\nProceeding with comparison anyway...\n", file=output_file)
-
-    extra_spaces = 0  # Spaces in deepgram that aren't in source
-    missing_spaces = 0  # Spaces in source that aren't in deepgram
-    
+def check_spaces(source_of_truth, comparison_transcript):
+    extra_spaces = 0
+    missing_spaces = 0
     source_idx = 0
     comparison_idx = 0
     char_position = 0
@@ -138,10 +129,6 @@ def check_spaces(provider, source_of_truth, comparison_transcript, output_file=N
                 comparison_idx += 1
                 char_position += 1
             else:
-                # Characters don't match - alignment issue
-                print(f"Character mismatch at position {char_position}:", file=output_file)
-                print(f"  Source: '{source_char}' (index {source_idx})", file=output_file)
-                print(f"  {provider}: '{comparison_char}' (index {comparison_idx})", file=output_file)
                 # Skip to try to realign
                 source_idx += 1
                 comparison_idx += 1
@@ -159,8 +146,112 @@ def check_spaces(provider, source_of_truth, comparison_transcript, output_file=N
 
     return extra_spaces, missing_spaces
 
-def calculate_cer():
-    pass
+def calculate_cer(insertions, deletions, substitutions, reference_length):
+    """
+    Calculate Character Error Rate (CER)
+    
+    CER = (I + D + S) / N
+    where:
+        I = insertions
+        D = deletions
+        S = substitutions
+        N = total characters in reference
+    """
+    total_errors = insertions + deletions + substitutions
+    cer = total_errors / reference_length if reference_length > 0 else 0
+    return cer, total_errors
+
+def print_cer_analysis(provider, 
+                       ins_no_space, 
+                       del_no_space,
+                       sub_no_space, 
+                       total_errors_no_space,
+                       cer_no_space,
+                       ins_with_space,
+                       del_with_space,
+                       sub_with_space,
+                       total_errors_with_space,
+                       cer_with_space
+                       ):
+    with open(f'./results/{provider}_cer_result.txt', 'w', encoding='utf-8') as output_file:
+        print("=" * 80, file=output_file)
+        print("Character Error Rate (CER) Calculator", file=output_file)
+        print("=" * 80, file=output_file)
+        print(file=output_file)
+
+        # ======================================================================
+        # Option 1: CER WITHOUT SPACES (character-level accuracy only)
+        # ======================================================================
+        print("=" * 80, file=output_file)
+        print("OPTION 1: CER WITHOUT SPACES", file=output_file)
+        print("(Focuses on character accuracy, ignoring spacing differences)", file=output_file)
+        print("=" * 80, file=output_file)
+        print(file=output_file)
+
+        print(f"Insertions:     {ins_no_space}", file=output_file)
+        print(f"Deletions:      {del_no_space}", file=output_file)
+        print(f"Substitutions:  {sub_no_space}", file=output_file)
+        print(f"Total Errors:   {total_errors_no_space}", file=output_file)
+        print(file=output_file)
+        print(f"CER (without spaces): {cer_no_space:.4f} ({cer_no_space * 100:.2f}%)", file=output_file)
+        print(f"Character Accuracy:   {(1 - cer_no_space):.4f} ({(1 - cer_no_space) * 100:.2f}%)", file=output_file)
+        print(file=output_file)
+
+        # ======================================================================
+        # Option 2: CER WITH SPACES (includes spacing errors)
+        # ======================================================================
+        print("=" * 80, file=output_file)
+        print("OPTION 2: CER WITH SPACES", file=output_file)
+        print("(Includes both character errors and spacing errors)", file=output_file)
+        print("=" * 80, file=output_file)
+        print(file=output_file)
+
+        print(f"Insertions:     {ins_with_space}", file=output_file)
+        print(f"Deletions:      {del_with_space}", file=output_file)
+        print(f"Substitutions:  {sub_with_space}", file=output_file)
+        print(f"Total Errors:   {total_errors_with_space}", file=output_file)
+        print(file=output_file)
+        print(f"CER (with spaces): {cer_with_space:.4f} ({cer_with_space * 100:.2f}%)", file=output_file)
+        print(f"Character Accuracy: {(1 - cer_with_space):.4f} ({(1 - cer_with_space) * 100:.2f}%)", file=output_file)
+        print(file=output_file)
+
+         # ======================================================================
+        # Summary and Recommendation
+        # ======================================================================
+        print("=" * 80, file=output_file)
+        print("SUMMARY", file=output_file)
+        print("=" * 80, file=output_file)
+        print(file=output_file)
+        print("1. CER WITHOUT SPACES (Character-only):", file=output_file)
+        print(f"   - CER: {cer_no_space * 100:.2f}%", file=output_file)
+        print(file=output_file)
+        print("2. CER WITH SPACES (Complete):", file=output_file)
+        print(f"   - CER: {cer_with_space * 100:.2f}%", file=output_file)
+        print(file=output_file)
+
+    print(f"Results written to {provider}_cer_result.txt")
+
+def print_space_analysis(provider, extra_spaces, missing_spaces):
+    with open(f'./results/{provider}_check_spaces_result.txt', 'w', encoding='utf-8') as output_file:
+        print("=" * 60, file=output_file)
+        print("Space Comparison Tool", file=output_file)
+        print("=" * 60, file=output_file)
+        print(file=output_file)
+
+        print("=" * 60, file=output_file)
+        print("RESULTS", file=output_file)
+        print("=" * 60, file=output_file)
+        print(file=output_file)
+        print(f"Extra spaces in {provider}.txt (not in source): {extra_spaces}", file=output_file)
+        print(f"  → These are spaces that {provider} added that shouldn't be there", file=output_file)
+        print(file=output_file)
+        print(f"Missing spaces in {provider}.txt (present in source): {missing_spaces}", file=output_file)
+        print(f"  → These are spaces that should be in {provider} but aren't", file=output_file)
+        print(file=output_file)
+        print("=" * 60, file=output_file)
+
+    print(f"Results written to {provider}_check_spaces_result.txt")
+
 
 def main():
     source_of_truth = normalize_true_transcript()
@@ -171,18 +262,40 @@ def main():
     deepgram_transcript_no_spaces = deepgram_transcript.replace(" ", "")
     cartesia_transcript_no_spaces = cartesia_transcript.replace(" ", "")
     
-    deepgram_levenshtein_no_spaces = levenshtein_with_operations(source_of_truth_no_spaces, deepgram_transcript_no_spaces)
-    cartesia_levenshtein_no_spaces = levenshtein_with_operations(source_of_truth_no_spaces, cartesia_transcript_no_spaces)
-    deepgram_levenshtein_with_spaces = levenshtein_with_operations(source_of_truth, deepgram_transcript_no_spaces)
-    cartesia_levenshtein_with_spaces = levenshtein_with_operations(source_of_truth, cartesia_transcript)
+    _, ins_dg_nosp, del_dg_nosp, sub_dg_nosp = levenshtein_with_operations(
+        source_of_truth_no_spaces, 
+        deepgram_transcript_no_spaces
+        )
+    _, ins_cart_nosp, del_cart_nosp, sub_cart_nosp = levenshtein_with_operations(
+        source_of_truth_no_spaces, 
+        cartesia_transcript_no_spaces
+        )
+    _, ins_dg_withsp, del_dg_withsp, sub_dg_withsp = levenshtein_with_operations(
+        source_of_truth, 
+        deepgram_transcript_no_spaces
+        )
+    _, ins_cart_withsp, del_cart_withsp, sub_cart_withsp  = levenshtein_with_operations(
+        source_of_truth, 
+        cartesia_transcript
+        )
+    
+    cer_dg_nosp, total_errors_dg_nosp = calculate_cer(ins_dg_nosp, del_dg_nosp, sub_dg_nosp, len(source_of_truth_no_spaces))
+    cer_cart_nosp, total_errors_cart_nosp = calculate_cer(ins_cart_nosp, del_cart_nosp, sub_cart_nosp, len(source_of_truth))
+    cer_dg_withsp, total_errors_dg_withsp = calculate_cer(ins_dg_withsp, del_dg_withsp, sub_dg_withsp, len(source_of_truth))
+    cer_cart_withsp, total_errors_cart_withsp = calculate_cer(ins_cart_withsp, del_cart_withsp, sub_cart_withsp, len(source_of_truth))
+
+    print_cer_analysis("deepgram", ins_dg_nosp, del_dg_nosp, sub_dg_nosp, total_errors_dg_nosp, cer_dg_nosp, ins_dg_withsp, del_dg_withsp, sub_dg_withsp, total_errors_dg_withsp, cer_dg_withsp)
+    print_cer_analysis("cartesia", ins_cart_nosp, del_cart_nosp, sub_cart_nosp, total_errors_cart_nosp, cer_cart_nosp, ins_cart_withsp, del_cart_withsp, sub_cart_withsp, total_errors_cart_withsp, cer_cart_withsp)
 
     # Replace the last part comparison_transcript with the variable "deepgram_transcript" for producfion.
-    deepgram_space_check = check_spaces("deepgram", source_of_truth, comparison_transcript=read_text_file('./deepgram_transcript/deepgram.txt'))
-    cartesia_space_check = check_spaces("cartesia", source_of_truth, comparison_transcript=read_text_file('./cartesia_transcript/cartesia.txt'))
+    dg_extra_spaces, dg_missing_spaces = check_spaces(source_of_truth, deepgram_transcript)
+    cart_extra_spaces, cart_missing_spaces = check_spaces(source_of_truth, cartesia_transcript)
     
+    print_space_analysis("deepgram", dg_extra_spaces, dg_missing_spaces)
+    print_space_analysis("cartesia", cart_extra_spaces, cart_missing_spaces)
     
     # write_file("./results/deepgram_spaces.txt", deepgram_space_check)
-    calculate_cer()
+    # calculate_cer()
 
 if __name__ == "__main__":
     main()
